@@ -7,6 +7,17 @@ license-file = "LICENSE"
 description = "Rust bindings for DECTalk text-to-speech"
 repository = "https://github.com/ApolloFops/rust-dectalk"
 readme = "README.md"
+include = [
+	"**/*.rs",
+	"wrapper.h",
+	"dectalk/**/*.h",
+	"dectalk/**/*.c",
+	"dectalk/**/*.cmakedefine",
+	"dectalk/**/*.def",
+	"dectalk/**/*.tab",
+	"dectalk/**/CMakeLists.txt",
+	"dectalk/src/dapi/src/dic/Dic_us.txt",
+]
 
 [dependencies]
 
