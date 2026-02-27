@@ -1,6 +1,7 @@
 mod lib;
 use lib as dectalk;
 
+use std::env;
 use std::path::Path;
 
 use dectalk::LPTTS_HANDLE_T;
@@ -9,6 +10,9 @@ use dectalk::WAVE_FORMAT_1M16;
 
 fn main() {
     println!("DECTalk Version: {}", dectalk::text_to_speech_version());
+
+    let args: Vec<String> = env::args().collect();
+
     let mut tts_handle: dectalk::TTSHandle = dectalk::TTSHandle::new();
 
     tts_handle
@@ -16,11 +20,11 @@ fn main() {
         .expect("Failed to start DECTalk");
 
     tts_handle
-        .open_wav_out_file(Path::new("test.wav"), WAVE_FORMAT_1M16)
+        .open_wav_out_file(Path::new(&args[1]), WAVE_FORMAT_1M16)
         .expect("Failed to open output file");
 
     tts_handle
-        .speak("dectalk from rust!", TTS_FORCE)
+        .speak(&args[2], TTS_FORCE)
         .expect("Failed to queue speech");
 
     tts_handle
