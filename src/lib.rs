@@ -126,3 +126,47 @@ pub fn text_to_speech_close_wave_out_file(tts_handle: LPTTS_HANDLE_T) -> Result<
         return parse_result(status);
     }
 }
+
+pub struct TTSHandle {
+    tts_handle_ptr: LPTTS_HANDLE_T,
+}
+
+impl TTSHandle {
+    pub fn new() -> Self {
+        Self {
+            tts_handle_ptr: std::ptr::null_mut(),
+        }
+    }
+
+    pub fn startup(
+        &mut self,
+        device_number: UINT,
+        device_options: DWORD,
+        callback_routine: Option<unsafe extern "C" fn(i64, i64, u32, u32)>,
+        callback_parameter: LONG,
+    ) -> Result<DtError, DtError> {
+        return text_to_speech_startup(
+            &mut self.tts_handle_ptr,
+            device_number,
+            device_options,
+            callback_routine,
+            callback_parameter,
+        );
+    }
+
+    pub fn shutdown(&self) -> Result<DtError, DtError> {
+        return text_to_speech_shutdown(self.tts_handle_ptr);
+    }
+
+    pub fn speak(&self, text: &str, flags: DWORD) -> Result<DtError, DtError> {
+        return text_to_speech_speak(self.tts_handle_ptr, text, flags);
+    }
+
+    pub fn open_wav_out_file(&self, file: &Path, audio_format: DWORD) -> Result<DtError, DtError> {
+        return text_to_speech_open_wave_out_file(self.tts_handle_ptr, file, audio_format);
+    }
+
+    pub fn close_wav_out_file(&self) -> Result<DtError, DtError> {
+        return text_to_speech_close_wave_out_file(self.tts_handle_ptr);
+    }
+}

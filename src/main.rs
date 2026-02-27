@@ -8,27 +8,26 @@ use dectalk::TTS_FORCE;
 use dectalk::WAVE_FORMAT_1M16;
 
 fn main() {
-    let mut tts_handle_ptr: LPTTS_HANDLE_T = std::ptr::null_mut();
-
     println!("DECTalk Version: {}", dectalk::text_to_speech_version());
+    let mut tts_handle: dectalk::TTSHandle = dectalk::TTSHandle::new();
 
-    dectalk::text_to_speech_startup(&mut tts_handle_ptr, 0, 0, Some(dt_callback), 0)
+    tts_handle
+        .startup(0, 0, Some(dt_callback), 0)
         .expect("Failed to start DECTalk");
 
-    dectalk::text_to_speech_open_wave_out_file(
-        tts_handle_ptr,
-        Path::new("test.wav"),
-        WAVE_FORMAT_1M16,
-    )
-    .expect("Failed to open output file");
+    tts_handle
+        .open_wav_out_file(Path::new("test.wav"), WAVE_FORMAT_1M16)
+        .expect("Failed to open output file");
 
-    dectalk::text_to_speech_speak(tts_handle_ptr, "dectalk from rust!", TTS_FORCE)
+    tts_handle
+        .speak("dectalk from rust!", TTS_FORCE)
         .expect("Failed to queue speech");
 
-    dectalk::text_to_speech_close_wave_out_file(tts_handle_ptr)
+    tts_handle
+        .close_wav_out_file()
         .expect("Failed to close output file");
 
-    dectalk::text_to_speech_shutdown(tts_handle_ptr).expect("Failed to shut down DECTalk");
+    tts_handle.shutdown().expect("Failed to shut down DECTalk");
 }
 
 extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: u32, message: u32) {
