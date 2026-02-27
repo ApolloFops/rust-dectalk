@@ -1,10 +1,8 @@
-mod lib;
-use lib as dectalk;
+use dectalk;
 
 use std::env;
 use std::path::Path;
 
-use dectalk::LPTTS_HANDLE_T;
 use dectalk::TTS_FORCE;
 use dectalk::WAVE_FORMAT_1M16;
 
