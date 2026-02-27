@@ -3,6 +3,10 @@ name = "dectalk"
 version = "0.1.0"
 edition = "2024"
 build = "build.rs"
+license-file = "LICENSE"
+description = "Rust bindings for DECTalk text-to-speech"
+repository = "https://github.com/ApolloFops/rust-dectalk"
+readme = "README.md"
 
 [dependencies]
 
