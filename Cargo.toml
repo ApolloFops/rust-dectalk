@@ -1,0 +1,11 @@
+[package]
+name = "dectalk"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+[dependencies]
+
+[build-dependencies]
+bindgen = "0.71.0"
+cmake = "0.1"

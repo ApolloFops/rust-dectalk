@@ -1,0 +1,4 @@
+[submodule "dectalk"]
+	path = dectalk
+	url = https://github.com/ApolloFops/dectalk.git
+	branch = cmake-for-rust
