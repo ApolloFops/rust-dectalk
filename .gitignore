@@ -2,3 +2,6 @@
 
 # MacOS stuff
 .DS_Store
+
+# Temporary work directories
+/work
