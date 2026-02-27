@@ -4,9 +4,19 @@ use std::path::PathBuf;
 use cmake::Config;
 
 fn main() {
+    let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR environment variable not set"));
+
+    // Copy dectalk source into OUT_DIR
+    let dectalk_source_path =
+        PathBuf::from(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("dectalk");
+    let dectalk_path = out_dir.join("dectalk");
+
+    dircpy::copy_dir(dectalk_source_path, &dectalk_path)
+        .expect("Failed to copy DECTalk to OUT_DIR");
+
     // Builds the project in the directory located in `libfoo`, installing it
     // into $OUT_DIR
-    let dst = Config::new("dectalk")
+    let dst = Config::new(&dectalk_path)
         .cxxflag("-DCMAKE_INSTALL_PREFIX=$OUT_DIR")
         .build();
 
@@ -31,8 +41,7 @@ fn main() {
         .expect("Unable to generate bindings");
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
-        .write_to_file(out_path.join("bindings.rs"))
+        .write_to_file(out_dir.join("bindings.rs"))
         .expect("Couldn't write bindings!");
 }
