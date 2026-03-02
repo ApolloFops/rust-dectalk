@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
+use std::fmt;
 use std::path::Path;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
@@ -60,9 +61,11 @@ pub fn text_to_speech_startup(
     tts_handle: *mut LPTTS_HANDLE_T,
     device_number: UINT,
     device_options: DWORD,
-    callback_routine: Option<unsafe extern "C" fn(i64, i64, u32, u32)>,
+    callback_routine: Option<unsafe extern "C" fn(i64, i64, i64, u32)>,
     callback_parameter: LONG,
 ) -> Result<DtError, DtError> {
+    dbg!(callback_parameter);
+
     unsafe {
         let status = TextToSpeechStartup(
             tts_handle,
@@ -128,6 +131,36 @@ pub fn text_to_speech_close_wave_out_file(tts_handle: LPTTS_HANDLE_T) -> Result<
     }
 }
 
+pub fn text_to_speech_open_in_memory(
+    tts_handle: LPTTS_HANDLE_T,
+    audio_format: DWORD,
+) -> Result<DtError, DtError> {
+    unsafe {
+        let status = TextToSpeechOpenInMemory(tts_handle, audio_format);
+
+        return parse_result(status);
+    }
+}
+
+pub fn text_to_speech_close_in_memory(tts_handle: LPTTS_HANDLE_T) -> Result<DtError, DtError> {
+    unsafe {
+        let status = TextToSpeechCloseInMemory(tts_handle);
+
+        return parse_result(status);
+    }
+}
+
+pub fn text_to_speech_add_buffer(
+    tts_handle: LPTTS_HANDLE_T,
+    buffer: *mut TTS_BUFFER_T,
+) -> Result<DtError, DtError> {
+    unsafe {
+        let status = TextToSpeechAddBuffer(tts_handle, buffer);
+
+        return parse_result(status);
+    }
+}
+
 pub struct TTSHandle {
     tts_handle_ptr: LPTTS_HANDLE_T,
 }
@@ -143,15 +176,14 @@ impl TTSHandle {
         &mut self,
         device_number: UINT,
         device_options: DWORD,
-        callback_routine: Option<unsafe extern "C" fn(i64, i64, u32, u32)>,
-        callback_parameter: LONG,
+        callback_routine: Option<unsafe extern "C" fn(i64, i64, i64, u32)>,
     ) -> Result<DtError, DtError> {
         return text_to_speech_startup(
             &mut self.tts_handle_ptr,
             device_number,
             device_options,
             callback_routine,
-            callback_parameter,
+            self as *mut Self as *mut usize as LONG,
         );
     }
 
@@ -169,5 +201,25 @@ impl TTSHandle {
 
     pub fn close_wav_out_file(&self) -> Result<DtError, DtError> {
         return text_to_speech_close_wave_out_file(self.tts_handle_ptr);
+    }
+
+    pub fn open_in_memory(&self, audio_format: DWORD) -> Result<DtError, DtError> {
+        return text_to_speech_open_in_memory(self.tts_handle_ptr, audio_format);
+    }
+
+    pub fn close_in_memory(&self) -> Result<DtError, DtError> {
+        return text_to_speech_close_in_memory(self.tts_handle_ptr);
+    }
+
+    pub fn add_buffer(&self, mut buffer: TTS_BUFFER_T) -> Result<DtError, DtError> {
+        return text_to_speech_add_buffer(self.tts_handle_ptr, &mut buffer);
+    }
+}
+
+impl fmt::Debug for TTSHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TTSHandle")
+            .field("tts_handle_ptr", &self.tts_handle_ptr)
+            .finish()
     }
 }

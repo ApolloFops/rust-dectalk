@@ -1,0 +1,86 @@
+use dectalk;
+
+use std::env;
+use std::ffi::{CStr, CString};
+
+use dectalk::TTS_FORCE;
+use dectalk::WAVE_FORMAT_1M16;
+
+fn main() {
+    println!("DECTalk Version: {}", dectalk::text_to_speech_version());
+
+    let args: Vec<String> = env::args().collect();
+
+    let mut tts_handle: dectalk::TTSHandle = dectalk::TTSHandle::new();
+
+    tts_handle
+        .startup(0, 0, Some(dt_callback))
+        .expect("Failed to start DECTalk");
+
+    dbg!(&tts_handle);
+
+    tts_handle
+        .open_in_memory(WAVE_FORMAT_1M16)
+        .expect("Failed to open in memory");
+
+    let mut data_string;
+    unsafe {
+        data_string = CString::from_vec_with_nul_unchecked(vec![0; 4096]);
+    }
+    let buffer_length = data_string.count_bytes() as u32;
+
+    let mut buffer: dectalk::TTS_BUFFER_T = dectalk::TTS_BUFFER_T {
+        lpData: data_string.into_raw(),
+        dwMaximumBufferLength: buffer_length,
+        lpPhonemeArray: std::ptr::null_mut(),
+        lpIndexArray: std::ptr::null_mut(),
+        dwMaximumNumberOfPhonemeChanges: 0,
+        dwMaximumNumberOfIndexMarks: 0,
+        dwBufferLength: 0,
+        dwNumberOfPhonemeChanges: 0,
+        dwNumberOfIndexMarks: 0,
+        dwReserved: 0,
+    };
+
+    tts_handle.add_buffer(buffer).expect("Failed to add buffer");
+
+    tts_handle
+        .speak("Testing dectalk", TTS_FORCE)
+        .expect("Failed to queue speech");
+
+    while (true) {}
+
+    tts_handle
+        .close_in_memory()
+        .expect("Failed to close in memory");
+
+    tts_handle.shutdown().expect("Failed to shut down DECTalk");
+}
+
+extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: u32) {
+    println!("DtCallback called");
+    println!(
+        "\tWPARAM: {}\n\tLPARAM: {}\n\tUser defined: {}\n\tMessage: {}",
+        wparam, lparam, user_defined, message
+    );
+
+    // Get the tts handle struct from the pointer
+    let tts_handle: *mut dectalk::TTSHandle = user_defined as *mut dectalk::TTSHandle;
+
+    if (message == dectalk::TTS_MSG_BUFFER) {
+        let buffer: *mut dectalk::TTS_BUFFER_T = lparam as *mut dectalk::TTS_BUFFER_T;
+        // Something about these debug statments is very cursed, commenting them all out breaks
+        // things, and uncommenting more than one breaks things too
+        // dbg!(buffer);
+
+        unsafe {
+            // dbg!((*buffer).dwMaximumBufferLength);
+            // dbg!((*buffer).dwBufferLength);
+            println!("{:?}", CStr::from_ptr((*buffer).lpData));
+
+            (*tts_handle)
+                .add_buffer(*buffer)
+                .expect("Failed to reuse buffer");
+        }
+    }
+}

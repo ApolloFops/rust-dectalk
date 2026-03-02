@@ -14,7 +14,7 @@ fn main() {
     let mut tts_handle: dectalk::TTSHandle = dectalk::TTSHandle::new();
 
     tts_handle
-        .startup(0, 0, Some(dt_callback), 0)
+        .startup(0, 0, Some(dt_callback))
         .expect("Failed to start DECTalk");
 
     tts_handle
