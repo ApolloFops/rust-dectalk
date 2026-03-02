@@ -32,7 +32,7 @@ fn main() {
     tts_handle.shutdown().expect("Failed to shut down DECTalk");
 }
 
-extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: u32, message: u32) {
+extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: u32) {
     println!("DtCallback called");
     println!(
         "\tWPARAM: {}\n\tLPARAM: {}\n\tUser defined: {}\n\tMessage: {}",
