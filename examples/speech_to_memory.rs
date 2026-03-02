@@ -42,7 +42,9 @@ fn main() {
         dwReserved: 0,
     };
 
-    tts_handle.add_buffer(buffer).expect("Failed to add buffer");
+    tts_handle
+        .add_buffer(&mut buffer)
+        .expect("Failed to add buffer");
 
     tts_handle
         .speak("Testing dectalk", TTS_FORCE)
@@ -69,17 +71,11 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
 
     if (message == dectalk::TTS_MSG_BUFFER) {
         let buffer: *mut dectalk::TTS_BUFFER_T = lparam as *mut dectalk::TTS_BUFFER_T;
-        // Something about these debug statments is very cursed, commenting them all out breaks
-        // things, and uncommenting more than one breaks things too
-        // dbg!(buffer);
+        dbg!(buffer);
 
         unsafe {
-            // dbg!((*buffer).dwMaximumBufferLength);
-            // dbg!((*buffer).dwBufferLength);
-            println!("{:?}", CStr::from_ptr((*buffer).lpData));
-
             (*tts_handle)
-                .add_buffer(*buffer)
+                .add_buffer(buffer)
                 .expect("Failed to reuse buffer");
         }
     }

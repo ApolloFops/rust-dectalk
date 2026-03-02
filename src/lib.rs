@@ -211,8 +211,8 @@ impl TTSHandle {
         return text_to_speech_close_in_memory(self.tts_handle_ptr);
     }
 
-    pub fn add_buffer(&self, mut buffer: TTS_BUFFER_T) -> Result<DtError, DtError> {
-        return text_to_speech_add_buffer(self.tts_handle_ptr, &mut buffer);
+    pub fn add_buffer(&self, buffer: *mut TTS_BUFFER_T) -> Result<DtError, DtError> {
+        return text_to_speech_add_buffer(self.tts_handle_ptr, buffer);
     }
 }
 
