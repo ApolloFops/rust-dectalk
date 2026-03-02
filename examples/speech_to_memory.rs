@@ -1,7 +1,7 @@
 use dectalk;
 
 use std::env;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 
 use dectalk::TTS_FORCE;
 use dectalk::WAVE_FORMAT_1M16;
@@ -13,9 +13,7 @@ fn main() {
 
     let mut tts_handle: dectalk::TTSHandle = dectalk::TTSHandle::new();
 
-    tts_handle
-        .startup(0, 0, Some(dt_callback))
-        .expect("Failed to start DECTalk");
+    tts_handle.startup(0, 0).expect("Failed to start DECTalk");
 
     dbg!(&tts_handle);
 
@@ -57,26 +55,4 @@ fn main() {
         .expect("Failed to close in memory");
 
     tts_handle.shutdown().expect("Failed to shut down DECTalk");
-}
-
-extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: u32) {
-    println!("DtCallback called");
-    println!(
-        "\tWPARAM: {}\n\tLPARAM: {}\n\tUser defined: {}\n\tMessage: {}",
-        wparam, lparam, user_defined, message
-    );
-
-    // Get the tts handle struct from the pointer
-    let tts_handle: *mut dectalk::TTSHandle = user_defined as *mut dectalk::TTSHandle;
-
-    if (message == dectalk::TTS_MSG_BUFFER) {
-        let buffer: *mut dectalk::TTS_BUFFER_T = lparam as *mut dectalk::TTS_BUFFER_T;
-        dbg!(buffer);
-
-        unsafe {
-            (*tts_handle)
-                .add_buffer(buffer)
-                .expect("Failed to reuse buffer");
-        }
-    }
 }

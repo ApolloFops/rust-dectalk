@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
+use std::ffi::CStr;
 use std::fmt;
 use std::path::Path;
 
@@ -176,13 +177,12 @@ impl TTSHandle {
         &mut self,
         device_number: UINT,
         device_options: DWORD,
-        callback_routine: Option<unsafe extern "C" fn(i64, i64, i64, u32)>,
     ) -> Result<DtError, DtError> {
         return text_to_speech_startup(
             &mut self.tts_handle_ptr,
             device_number,
             device_options,
-            callback_routine,
+            Some(dt_callback),
             self as *mut Self as *mut usize as LONG,
         );
     }
@@ -213,6 +213,31 @@ impl TTSHandle {
 
     pub fn add_buffer(&self, buffer: *mut TTS_BUFFER_T) -> Result<DtError, DtError> {
         return text_to_speech_add_buffer(self.tts_handle_ptr, buffer);
+    }
+}
+
+extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: u32) {
+    println!("DtCallback called");
+    println!(
+        "\tWPARAM: {}\n\tLPARAM: {}\n\tUser defined: {}\n\tMessage: {}",
+        wparam, lparam, user_defined, message
+    );
+
+    // Get the tts handle struct from the pointer
+    let tts_handle: *mut TTSHandle = user_defined as *mut TTSHandle;
+
+    if (message == TTS_MSG_BUFFER) {
+        let buffer: *mut TTS_BUFFER_T = lparam as *mut TTS_BUFFER_T;
+
+        unsafe {
+            dbg!((*buffer));
+            println!("{:?}", CStr::from_ptr((*buffer).lpData));
+
+            // Requeue the buffer
+            (*tts_handle)
+                .add_buffer(buffer)
+                .expect("Failed to reuse buffer");
+        }
     }
 }
 
