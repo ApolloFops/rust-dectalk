@@ -241,6 +241,22 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
             dbg!((*buffer));
             println!("{:?}", CStr::from_ptr((*buffer).lpData));
 
+            // Get the index array and print it out
+            let index_array = std::slice::from_raw_parts(
+                (*buffer).lpIndexArray,
+                (*buffer).dwMaximumNumberOfIndexMarks as usize,
+            );
+            for (i, mark) in index_array
+                .iter()
+                .filter(|m| m.dwIndexValue != 0)
+                .enumerate()
+            {
+                println!(
+                    "Index {}: sample={} value={}",
+                    i, mark.dwIndexSampleNumber, mark.dwIndexValue
+                );
+            }
+
             // Requeue the buffer
             (*tts_handle)
                 .add_buffer(buffer)

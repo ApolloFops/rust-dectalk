@@ -27,13 +27,16 @@ fn main() {
     }
     let buffer_length = data_string.count_bytes() as u32;
 
+    // TODO: Sort out keeping this alive and then dropping it when done
+    let mut index_vec: Vec<dectalk::TTS_INDEX_T> = Vec::with_capacity(128 as usize);
+
     let mut buffer: dectalk::TTS_BUFFER_T = dectalk::TTS_BUFFER_T {
         lpData: data_string.into_raw(),
         dwMaximumBufferLength: buffer_length,
         lpPhonemeArray: std::ptr::null_mut(),
-        lpIndexArray: std::ptr::null_mut(),
+        lpIndexArray: index_vec.as_mut_ptr(),
         dwMaximumNumberOfPhonemeChanges: 0,
-        dwMaximumNumberOfIndexMarks: 0,
+        dwMaximumNumberOfIndexMarks: 128,
         dwBufferLength: 0,
         dwNumberOfPhonemeChanges: 0,
         dwNumberOfIndexMarks: 0,
@@ -45,7 +48,7 @@ fn main() {
         .expect("Failed to add buffer");
 
     tts_handle
-        .speak("Testing dectalk", TTS_FORCE)
+        .speak("[:index mark 1]Testing dectalk[:index mark 2]", TTS_FORCE)
         .expect("Failed to queue speech");
 
     while (true) {}
