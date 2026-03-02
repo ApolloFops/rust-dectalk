@@ -216,6 +216,14 @@ impl TTSHandle {
     }
 }
 
+impl fmt::Debug for TTSHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TTSHandle")
+            .field("tts_handle_ptr", &self.tts_handle_ptr)
+            .finish()
+    }
+}
+
 extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: u32) {
     println!("DtCallback called");
     println!(
@@ -238,13 +246,5 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
                 .add_buffer(buffer)
                 .expect("Failed to reuse buffer");
         }
-    }
-}
-
-impl fmt::Debug for TTSHandle {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TTSHandle")
-            .field("tts_handle_ptr", &self.tts_handle_ptr)
-            .finish()
     }
 }
