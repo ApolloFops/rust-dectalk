@@ -164,12 +164,14 @@ pub fn text_to_speech_add_buffer(
 
 pub struct TTSHandle {
     tts_handle_ptr: LPTTS_HANDLE_T,
+    buffers: Vec<*mut TTS_BUFFER_T>,
 }
 
 impl TTSHandle {
     pub fn new() -> Self {
         Self {
             tts_handle_ptr: std::ptr::null_mut(),
+            buffers: Vec::new(),
         }
     }
 
@@ -211,8 +213,44 @@ impl TTSHandle {
         return text_to_speech_close_in_memory(self.tts_handle_ptr);
     }
 
-    pub fn add_buffer(&self, buffer: *mut TTS_BUFFER_T) -> Result<DtError, DtError> {
+    pub fn add_buffer(&mut self, buffer: *mut TTS_BUFFER_T) -> Result<DtError, DtError> {
         return text_to_speech_add_buffer(self.tts_handle_ptr, buffer);
+    }
+
+    pub fn create_buffer(
+        &mut self,
+        data_buffer_size: usize,
+        index_buffer_size: usize,
+    ) -> Result<DtError, DtError> {
+        let mut data = vec![0 as LPSTR; data_buffer_size];
+        let data_ptr = data.as_mut_ptr();
+        std::mem::forget(data);
+
+        // TODO: Sort out keeping this alive and then dropping it when done
+        let mut index_vec: Vec<TTS_INDEX_T> = Vec::with_capacity(index_buffer_size);
+        let index_vec_ptr = index_vec.as_mut_ptr();
+        std::mem::forget(index_vec);
+
+        let buffer = Box::new(TTS_BUFFER_T {
+            lpData: data_ptr as *mut i8,
+            dwMaximumBufferLength: data_buffer_size as u32,
+            lpPhonemeArray: std::ptr::null_mut(),
+            lpIndexArray: index_vec_ptr,
+            dwMaximumNumberOfPhonemeChanges: 0,
+            dwMaximumNumberOfIndexMarks: index_buffer_size as u32,
+            dwBufferLength: 0,
+            dwNumberOfPhonemeChanges: 0,
+            dwNumberOfIndexMarks: 0,
+            dwReserved: 0,
+        });
+
+        let buffer_ptr = Box::into_raw(buffer);
+
+        let status = self.add_buffer(unsafe { &mut *buffer_ptr });
+
+        self.buffers.push(buffer_ptr);
+
+        return status;
     }
 }
 
@@ -238,7 +276,7 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
         let buffer: *mut TTS_BUFFER_T = lparam as *mut TTS_BUFFER_T;
 
         unsafe {
-            dbg!((*buffer));
+            dbg!(&(*buffer));
             println!("{:?}", CStr::from_ptr((*buffer).lpData));
 
             // Get the index array and print it out
