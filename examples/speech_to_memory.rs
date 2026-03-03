@@ -7,7 +7,8 @@ use std::io::Write;
 use dectalk::TTS_FORCE;
 use dectalk::WAVE_FORMAT_1M16;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     println!("DECTalk Version: {}", dectalk::text_to_speech_version());
 
     let args: Vec<String> = env::args().collect();

@@ -6,6 +6,8 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::Notify;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
@@ -164,7 +166,8 @@ pub fn text_to_speech_add_buffer(
 pub struct TTSOutputBuffer {
     pub output_data: Vec<u8>,
     index_mark: DWORD,
-    pub done: bool,
+    pub ready: bool,
+    notify_ready: Arc<Notify>,
 }
 
 impl TTSOutputBuffer {
@@ -172,8 +175,19 @@ impl TTSOutputBuffer {
         Self {
             output_data: Vec::new(),
             index_mark: index_mark,
-            done: false,
+            ready: false,
+            notify_ready: Arc::new(Notify::new()),
         }
+    }
+
+    pub fn notify_when_ready(&self) -> Arc<Notify> {
+        return self.notify_ready.clone();
+    }
+
+    pub fn mark_ready(&mut self) {
+        self.ready = true;
+        // Notify that this buffer is ready
+        self.notify_ready.notify_one();
     }
 }
 
@@ -181,6 +195,7 @@ impl fmt::Debug for TTSOutputBuffer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TTSOutputBuffer")
             .field("index_mark", &self.index_mark)
+            .field("ready", &self.ready)
             .finish()
     }
 }
@@ -349,11 +364,11 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
                 let last_buffer_index = (*tts_handle).last_buffer_modified;
 
                 if mark.dwIndexValue != last_buffer_index {
-                    // Get the previous buffer and mark it as done
+                    // Get the previous buffer and mark it as ready
                     let last_buffer = (*tts_handle).output_buffers.get_mut(&last_buffer_index);
                     match last_buffer {
                         Some(v) => {
-                            v.done = true;
+                            v.mark_ready();
                             println!("Done with buffer");
                         }
                         None => eprintln!("Previous index tag not in buffer cache"),
