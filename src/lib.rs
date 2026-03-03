@@ -164,6 +164,7 @@ pub fn text_to_speech_add_buffer(
 pub struct TTSOutputBuffer {
     pub output_data: Vec<u8>,
     index_mark: DWORD,
+    pub done: bool,
 }
 
 impl TTSOutputBuffer {
@@ -171,6 +172,7 @@ impl TTSOutputBuffer {
         Self {
             output_data: Vec::new(),
             index_mark: index_mark,
+            done: false,
         }
     }
 }
@@ -189,6 +191,7 @@ pub struct TTSHandle {
     tts_handle_ptr: LPTTS_HANDLE_T,
     buffers: Vec<*mut TTS_BUFFER_T>,
     pub output_buffers: HashMap<DWORD, TTSOutputBuffer>,
+    pub last_buffer_modified: DWORD,
 }
 
 impl TTSHandle {
@@ -197,6 +200,7 @@ impl TTSHandle {
             tts_handle_ptr: std::ptr::null_mut(),
             buffers: Vec::new(),
             output_buffers: HashMap::new(),
+            last_buffer_modified: 0,
         }
     }
 
@@ -311,8 +315,6 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
         let buffer: *mut TTS_BUFFER_T = lparam as *mut TTS_BUFFER_T;
 
         unsafe {
-            dbg!(&(*buffer));
-
             // Get the data array
             let data_array = std::slice::from_raw_parts(
                 (*buffer).lpData as *const u8,
@@ -341,6 +343,26 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
                 .filter(|m| m.dwIndexValue != 0)
                 .enumerate()
             {
+                // If this buffer is different from the last one we wrote to, mark the last one as
+                // done
+                // TODO: I'm sure there's a better way to do this whole thing
+                let last_buffer_index = (*tts_handle).last_buffer_modified;
+
+                if mark.dwIndexValue != last_buffer_index {
+                    // Get the previous buffer and mark it as done
+                    let last_buffer = (*tts_handle).output_buffers.get_mut(&last_buffer_index);
+                    match last_buffer {
+                        Some(v) => {
+                            v.done = true;
+                            println!("Done with buffer");
+                        }
+                        None => eprintln!("Previous index tag not in buffer cache"),
+                    }
+
+                    // Set this buffer as the last buffer modified
+                    (*tts_handle).last_buffer_modified = mark.dwIndexValue;
+                }
+
                 // Find the buffer to write to
                 let buffer = (*tts_handle).output_buffers.get_mut(&mark.dwIndexValue);
 
