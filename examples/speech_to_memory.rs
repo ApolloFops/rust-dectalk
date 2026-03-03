@@ -25,10 +25,15 @@ fn main() {
         .expect("Failed to create buffer");
 
     tts_handle
-        .speak(
-            "[:index mark 1]Testing dectalk speech-to-memory from rust![:index mark 2]",
-            TTS_FORCE,
-        )
+        .speak("Testing dectalk speech-to-memory from rust!", TTS_FORCE)
+        .expect("Failed to queue speech");
+
+    tts_handle
+        .speak("Speaking a second time", TTS_FORCE)
+        .expect("Failed to queue speech");
+
+    tts_handle
+        .speak("Speaking once again, now three!", TTS_FORCE)
         .expect("Failed to queue speech");
 
     // while (true) {}
@@ -39,13 +44,17 @@ fn main() {
 
     tts_handle.shutdown().expect("Failed to shut down DECTalk");
 
-    // Write data to a file
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open("testout.wav")
-        .expect("Failed to open file");
+    dbg!(&tts_handle.output_buffers);
 
-    file.write_all(tts_handle.output_buffer.as_slice())
-        .expect("Failed to write data to output file");
+    // Write data to a file
+    for (key, value) in tts_handle.output_buffers {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(format!("output{}.wav", key))
+            .expect("Failed to open file");
+
+        file.write_all(value.output_data.as_slice())
+            .expect("Failed to write data to output file");
+    }
 }

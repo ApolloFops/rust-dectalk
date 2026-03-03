@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
+use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
 
@@ -91,15 +92,11 @@ pub fn text_to_speech_shutdown(tts_handle: LPTTS_HANDLE_T) -> Result<DtError, Dt
 
 pub fn text_to_speech_speak(
     tts_handle: LPTTS_HANDLE_T,
-    text: &str,
+    text: String,
     flags: DWORD,
 ) -> Result<DtError, DtError> {
     unsafe {
-        let status = TextToSpeechSpeak(
-            tts_handle,
-            String::from(text).as_mut_ptr() as *mut i8,
-            flags,
-        );
+        let status = TextToSpeechSpeak(tts_handle, text.as_ptr() as *mut i8, flags);
 
         return parse_result(status);
     }
@@ -163,11 +160,35 @@ pub fn text_to_speech_add_buffer(
     }
 }
 
+// ----- TTSOutputBuffer -----
+pub struct TTSOutputBuffer {
+    pub output_data: Vec<u8>,
+    index_mark: DWORD,
+}
+
+impl TTSOutputBuffer {
+    pub fn new(index_mark: DWORD) -> Self {
+        Self {
+            output_data: Vec::new(),
+            index_mark: index_mark,
+        }
+    }
+}
+
+impl fmt::Debug for TTSOutputBuffer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TTSOutputBuffer")
+            .field("index_mark", &self.index_mark)
+            .finish()
+    }
+}
+
 // ----- TTSHandle -----
+#[derive(Debug)]
 pub struct TTSHandle {
     tts_handle_ptr: LPTTS_HANDLE_T,
     buffers: Vec<*mut TTS_BUFFER_T>,
-    pub output_buffer: Vec<u8>,
+    pub output_buffers: HashMap<DWORD, TTSOutputBuffer>,
 }
 
 impl TTSHandle {
@@ -175,7 +196,7 @@ impl TTSHandle {
         Self {
             tts_handle_ptr: std::ptr::null_mut(),
             buffers: Vec::new(),
-            output_buffer: Vec::new(),
+            output_buffers: HashMap::new(),
         }
     }
 
@@ -197,8 +218,26 @@ impl TTSHandle {
         return text_to_speech_shutdown(self.tts_handle_ptr);
     }
 
-    pub fn speak(&self, text: &str, flags: DWORD) -> Result<DtError, DtError> {
-        return text_to_speech_speak(self.tts_handle_ptr, text, flags);
+    pub fn speak(&mut self, text: &str, flags: DWORD) -> Result<DtError, DtError> {
+        // Find the first integer key not in the hashmap and use that as our index mark
+        let unused_key = (1..).find(|i| !self.output_buffers.contains_key(i));
+
+        let index_mark: DWORD;
+        match unused_key {
+            Some(n) => index_mark = n,
+            // If we can't find an index mark to use, throw an error
+            None => return Err(DtError::Error),
+        }
+
+        // Create an output buffer and add it to the map
+        let output_buffer = TTSOutputBuffer::new(index_mark);
+        self.output_buffers.insert(index_mark, output_buffer);
+
+        return text_to_speech_speak(
+            self.tts_handle_ptr,
+            format!("[:index mark {}]{}", index_mark, text),
+            flags,
+        );
     }
 
     pub fn open_wav_out_file(&self, file: &Path, audio_format: DWORD) -> Result<DtError, DtError> {
@@ -258,14 +297,6 @@ impl TTSHandle {
     }
 }
 
-impl fmt::Debug for TTSHandle {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TTSHandle")
-            .field("tts_handle_ptr", &self.tts_handle_ptr)
-            .finish()
-    }
-}
-
 extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: u32) {
     println!("DtCallback called");
     println!(
@@ -305,9 +336,22 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
             }
 
             // Append data to the output buffer
-            (*tts_handle)
-                .output_buffer
-                .extend_from_slice(data_array);
+            for (i, mark) in index_array
+                .iter()
+                .filter(|m| m.dwIndexValue != 0)
+                .enumerate()
+            {
+                // Find the buffer to write to
+                let buffer = (*tts_handle).output_buffers.get_mut(&mark.dwIndexValue);
+
+                match buffer {
+                    // If we found a buffer, append the sample data to it
+                    // TODO: Check for and handle the case where we have multiple indices in one
+                    // message
+                    Some(v) => v.output_data.extend_from_slice(data_array),
+                    None => eprintln!("Index tag not in buffer cache"),
+                }
+            }
 
             // Requeue the buffer
             (*tts_handle)
