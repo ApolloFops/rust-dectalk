@@ -21,22 +21,23 @@ fn main() {
         .open_in_memory(WAVE_FORMAT_1M16)
         .expect("Failed to open in memory");
 
-    let mut data_string;
-    unsafe {
-        data_string = CString::from_vec_with_nul_unchecked(vec![0; 4096]);
-    }
-    let buffer_length = data_string.count_bytes() as u32;
+    // tts_handle
+    //     .create_buffer(4096, 128)
+    //     .expect("Failed to create buffer");
 
-    // TODO: Sort out keeping this alive and then dropping it when done
-    let mut index_vec: Vec<dectalk::TTS_INDEX_T> = Vec::with_capacity(128 as usize);
+    let mut data = vec![0; 4096];
+    let data_ptr = data.as_mut_ptr();
+
+    let mut index_vec: Vec<dectalk::TTS_INDEX_T> = Vec::with_capacity(128);
+    let index_vec_ptr = index_vec.as_mut_ptr();
 
     let mut buffer: dectalk::TTS_BUFFER_T = dectalk::TTS_BUFFER_T {
-        lpData: data_string.into_raw(),
-        dwMaximumBufferLength: buffer_length,
+        lpData: data_ptr as *mut i8,
+        dwMaximumBufferLength: 4096 as u32,
         lpPhonemeArray: std::ptr::null_mut(),
-        lpIndexArray: index_vec.as_mut_ptr(),
+        lpIndexArray: index_vec_ptr,
         dwMaximumNumberOfPhonemeChanges: 0,
-        dwMaximumNumberOfIndexMarks: 128,
+        dwMaximumNumberOfIndexMarks: 128 as u32,
         dwBufferLength: 0,
         dwNumberOfPhonemeChanges: 0,
         dwNumberOfIndexMarks: 0,
@@ -50,6 +51,7 @@ fn main() {
     tts_handle
         .speak("[:index mark 1]Testing dectalk[:index mark 2]", TTS_FORCE)
         .expect("Failed to queue speech");
+    println!("queued speech");
 
     while (true) {}
 
