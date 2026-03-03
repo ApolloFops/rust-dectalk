@@ -1,6 +1,8 @@
 use dectalk;
 
 use std::env;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 use dectalk::TTS_FORCE;
 use dectalk::WAVE_FORMAT_1M16;
@@ -23,14 +25,27 @@ fn main() {
         .expect("Failed to create buffer");
 
     tts_handle
-        .speak("[:index mark 1]Testing dectalk[:index mark 2]", TTS_FORCE)
+        .speak(
+            "[:index mark 1]Testing dectalk speech-to-memory from rust![:index mark 2]",
+            TTS_FORCE,
+        )
         .expect("Failed to queue speech");
 
-    while (true) {}
+    // while (true) {}
 
     tts_handle
         .close_in_memory()
         .expect("Failed to close in memory");
 
     tts_handle.shutdown().expect("Failed to shut down DECTalk");
+
+    // Write data to a file
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open("testout.wav")
+        .expect("Failed to open file");
+
+    file.write_all(tts_handle.output_buffer.as_slice())
+        .expect("Failed to write data to output file");
 }

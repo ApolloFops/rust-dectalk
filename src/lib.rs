@@ -3,7 +3,6 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
-use std::ffi::CStr;
 use std::fmt;
 use std::path::Path;
 
@@ -165,6 +164,7 @@ pub fn text_to_speech_add_buffer(
 pub struct TTSHandle {
     tts_handle_ptr: LPTTS_HANDLE_T,
     buffers: Vec<*mut TTS_BUFFER_T>,
+    pub output_buffer: Vec<u8>,
 }
 
 impl TTSHandle {
@@ -172,6 +172,7 @@ impl TTSHandle {
         Self {
             tts_handle_ptr: std::ptr::null_mut(),
             buffers: Vec::new(),
+            output_buffer: Vec::new(),
         }
     }
 
@@ -277,7 +278,12 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
 
         unsafe {
             dbg!(&(*buffer));
-            println!("{:?}", CStr::from_ptr((*buffer).lpData));
+
+            // Get the data array
+            let data_array = std::slice::from_raw_parts(
+                (*buffer).lpData as *const u8,
+                (*buffer).dwBufferLength as usize,
+            );
 
             // Get the index array and print it out
             let index_array = std::slice::from_raw_parts(
@@ -294,6 +300,11 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
                     i, mark.dwIndexSampleNumber, mark.dwIndexValue
                 );
             }
+
+            // Append data to the output buffer
+            (*tts_handle)
+                .output_buffer
+                .extend_from_slice(data_array);
 
             // Requeue the buffer
             (*tts_handle)
