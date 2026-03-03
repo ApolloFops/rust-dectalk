@@ -13,6 +13,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 #[link(name = "dectalk")]
 unsafe extern "C" {}
 
+// ----- DtError -----
 #[derive(Debug, PartialEq)]
 pub enum DtError {
     NoError,
@@ -52,6 +53,7 @@ fn parse_result(v: MMRESULT) -> Result<DtError, DtError> {
     }
 }
 
+// ----- Wrapper functions -----
 pub fn text_to_speech_version() -> u32 {
     let x = unsafe { TextToSpeechVersion(std::ptr::null_mut()) };
     return x;
@@ -161,6 +163,7 @@ pub fn text_to_speech_add_buffer(
     }
 }
 
+// ----- TTSHandle -----
 pub struct TTSHandle {
     tts_handle_ptr: LPTTS_HANDLE_T,
     buffers: Vec<*mut TTS_BUFFER_T>,
