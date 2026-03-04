@@ -196,11 +196,8 @@ pub fn text_to_speech_speak(
     flags: DtTTSFlags,
 ) -> Result<DtError, DtError> {
     unsafe {
-        let status = ffi::TextToSpeechSpeak(
-            tts_handle,
-            text.as_ptr() as *mut i8,
-            flags.integer_value(),
-        );
+        let status =
+            ffi::TextToSpeechSpeak(tts_handle, text.as_ptr() as *mut i8, flags.integer_value());
 
         return parse_result(status);
     }
@@ -256,10 +253,10 @@ pub fn text_to_speech_close_wave_out_file(
 /// system remains in the speech-to-memory mode until TextToSpeechCloseInMemory is called.
 pub fn text_to_speech_open_in_memory(
     tts_handle: ffi::LPTTS_HANDLE_T,
-    audio_format: ffi::DWORD,
+    audio_format: DtTTSFormat,
 ) -> Result<DtError, DtError> {
     unsafe {
-        let status = ffi::TextToSpeechOpenInMemory(tts_handle, audio_format);
+        let status = ffi::TextToSpeechOpenInMemory(tts_handle, audio_format.integer_value());
 
         return parse_result(status);
     }
@@ -460,7 +457,7 @@ impl TTSHandle {
     /// TextToSpeechAddBuffer call supplies the text-to-speech system with the memory buffers that
     /// it needs. The text-to-speech system remains in the speech-to-memory mode until
     /// TextToSpeechCloseInMemory is called.
-    pub fn open_in_memory(&self, audio_format: ffi::DWORD) -> Result<DtError, DtError> {
+    pub fn open_in_memory(&self, audio_format: DtTTSFormat) -> Result<DtError, DtError> {
         return text_to_speech_open_in_memory(self.tts_handle_ptr, audio_format);
     }
 
