@@ -89,7 +89,7 @@ fn parse_result(v: ffi::MMRESULT) -> Result<DtError, DtError> {
 ///
 /// For safety, users should do the following check:
 ///
-/// ```
+/// ```ignore
 /// if (DAPI_Major_Version!=Build_Major_Version) Error();
 /// if (DAPI_Minor_Version<Build_Minor_Version) Error();
 /// success();
