@@ -1,3 +1,8 @@
+#![warn(missing_docs)]
+
+//! `dectalk` is a wrapper around the [DECTalk](https://github.com/dectalk/dectalk) text-to-speech
+//! library.
+
 pub mod ffi;
 
 use std::collections::HashMap;
@@ -7,24 +12,40 @@ use std::sync::Arc;
 use tokio::sync::Notify;
 
 // ----- DtError -----
+/// A struct that represents an error that DECTalk can throw.
 #[derive(Debug, PartialEq)]
 pub enum DtError {
+    /// No error
     NoError,
+    /// Unspecified error
     Error,
+    /// Device ID out of range
     BadDeviceID,
+    /// Driver failed to enable
     NotEnabled,
+    /// Device already allocated
     Allocated,
+    /// Device handle is invalid
     InvalidHandle,
+    /// No device driver present
     NoDriver,
+    /// Memory allocation error
     NoMemory,
+    /// Function isn't supported
     NotSupported,
+    /// Error value out of range
     BadErrorNumber,
+    /// Invalid flag passed
     InvalidFlag,
+    /// Invalid parameter passed
     InvalidParameter,
+    /// Handle being used simultaneously on another thread (eg callback)
     HandleBusy,
+    /// Specified alias not found in WIN.INI
     InvalidAlias,
 }
 
+/// Parses an MMRESULT from Dectalk and returns a DtError formatted error.
 fn parse_result(v: ffi::MMRESULT) -> Result<DtError, DtError> {
     match v {
         ffi::MMSYSERR_NOERROR => Ok(DtError::NoError),
@@ -47,11 +68,44 @@ fn parse_result(v: ffi::MMRESULT) -> Result<DtError, DtError> {
 }
 
 // ----- Wrapper functions -----
+/// Requests version information from DECTalk.
+///
+/// This call returns an unsigned long integer (DWORD) encoded with both DAPI build version and the
+/// DECtalk Software version number. The encoding is as follows:
+///
+/// | Bits  | Field                 |
+/// | ----- | --------------------- |
+/// | 31-24 | DECtalk Major Version |
+/// | 23-16 | DECtalk Minor Version |
+/// | 15-8  | DAPI Major Version    |
+/// | 7-0   | DAPI Minor Version    |
+///
+/// If the DAPI Major Version is not the same as the DAPI Major Version the application was
+/// compiled with, the DAPI is no longer compatible and the application may easily crash during
+/// further calls into the DAPI.
+///
+/// If the DAPI Minor Version is lower than the version of the DAPI the application was compiled
+/// with, some features which are expected may not be callable or present in the DAPI.
+///
+/// For safety, users should do the following check:
+///
+/// ```
+/// if (DAPI_Major_Version!=Build_Major_Version) Error();
+/// if (DAPI_Minor_Version<Build_Minor_Version) Error();
+/// success();
+/// ```
+///
+/// This allows your application to catch a majority of incompatability bugs that could arise from
+/// DECtalk Software version mismatching.
 pub fn text_to_speech_version() -> u32 {
     let x = unsafe { ffi::TextToSpeechVersion(std::ptr::null_mut()) };
     return x;
 }
 
+/// Initializes the text-to-speech system, defines the callback routine, checks for valid licenses,
+/// and loads the main and user pronunciation dictionaries.
+///
+/// A single process can run multiple instances of DECtalk Software.
 pub fn text_to_speech_startup(
     tts_handle: *mut ffi::LPTTS_HANDLE_T,
     device_number: ffi::UINT,
@@ -74,6 +128,8 @@ pub fn text_to_speech_startup(
     }
 }
 
+/// Shuts down the text-to-speech system and frees all system resources used by the text-to-speech
+/// system.
 pub fn text_to_speech_shutdown(tts_handle: ffi::LPTTS_HANDLE_T) -> Result<DtError, DtError> {
     unsafe {
         let status = ffi::TextToSpeechShutdown(tts_handle);
@@ -82,6 +138,14 @@ pub fn text_to_speech_shutdown(tts_handle: ffi::LPTTS_HANDLE_T) -> Result<DtErro
     }
 }
 
+/// Queues a null-terminated string to the text-to-speech system.
+///
+/// While in startup state, speech samples are routed to the audio device or ignored, depending on
+/// whether the DO_NOT_USE_AUDIO_DEVICE flag is set in the dwDeviceOptions parameter of the startup
+/// function.
+///
+/// If the text_to_speech system is in one of its special modes (wave-file, log-file, or
+/// speech-to-memory modes), the speech samples are handled accordingly.
 pub fn text_to_speech_speak(
     tts_handle: ffi::LPTTS_HANDLE_T,
     text: String,
@@ -94,6 +158,12 @@ pub fn text_to_speech_speak(
     }
 }
 
+/// Causes the specified wave file to be opened and the text-to-speech system to enter into
+/// wave-file mode.
+///
+/// This mode indicates that the speech samples are to be written in wave format into the wave file
+/// each time TextToSpeechSpeak is called. The text-to-speech system remains in the wave-file mode
+/// until TextToSpeechCloseWaveOutFile is called
 pub fn text_to_speech_open_wave_out_file(
     tts_handle: ffi::LPTTS_HANDLE_T,
     file: &Path,
@@ -117,6 +187,9 @@ pub fn text_to_speech_open_wave_out_file(
     }
 }
 
+/// Closes a wave file opened by the TextToSpeechOpenWaveOutFile call and returns to the startup
+/// state. The speech samples are then ignored or sent to an audio device, depending on the setting
+/// of the dwDeviceOptions parameter in the startup function
 pub fn text_to_speech_close_wave_out_file(
     tts_handle: ffi::LPTTS_HANDLE_T,
 ) -> Result<DtError, DtError> {
@@ -127,6 +200,12 @@ pub fn text_to_speech_close_wave_out_file(
     }
 }
 
+/// Causes the text-to-speech system to enter into the speech-to-memory mode.
+///
+/// This mode indicates that the speech samples are to be written into memory buffers rather than
+/// sent to an audio device each time TextToSpeechSpeak is called. The TextToSpeechAddBuffer call
+/// supplies the text-to-speech system with the memory buffers that it needs. The text-to-speech
+/// system remains in the speech-to-memory mode until TextToSpeechCloseInMemory is called.
 pub fn text_to_speech_open_in_memory(
     tts_handle: ffi::LPTTS_HANDLE_T,
     audio_format: ffi::DWORD,
@@ -138,6 +217,9 @@ pub fn text_to_speech_open_in_memory(
     }
 }
 
+/// Terminates the speech-to-memory capability and returns to the startup state. The speech samples
+/// are then ignored or sent to an audio device, depending on the setting of the dwDeviceOptions
+/// parameter in the startup function.
 pub fn text_to_speech_close_in_memory(tts_handle: ffi::LPTTS_HANDLE_T) -> Result<DtError, DtError> {
     unsafe {
         let status = ffi::TextToSpeechCloseInMemory(tts_handle);
@@ -146,6 +228,8 @@ pub fn text_to_speech_close_in_memory(tts_handle: ffi::LPTTS_HANDLE_T) -> Result
     }
 }
 
+/// Supplies a memory buffer to the text-to-speech system. This memory buffer is used to store
+/// speech samples while in the speech-to-memory mode.
 pub fn text_to_speech_add_buffer(
     tts_handle: ffi::LPTTS_HANDLE_T,
     buffer: *mut ffi::TTS_BUFFER_T,
@@ -158,14 +242,22 @@ pub fn text_to_speech_add_buffer(
 }
 
 // ----- TTSOutputBuffer -----
+/// Stores speech output from DECTalk in speech-to-memory mode and keeps track of when it's ready
+/// to be read.
 pub struct TTSOutputBuffer {
+    /// The raw audio data output by DECTalk. This gets added to incrementally, and is not
+    /// guaranteed to be complete until ready is true.
     pub output_data: Vec<u8>,
+    /// The index mark number for this output buffer.
     index_mark: ffi::DWORD,
+    /// Is the buffer ready to be read?
     pub ready: bool,
+    /// A Notify that notifies when the buffer is ready.
     notify_ready: Arc<Notify>,
 }
 
 impl TTSOutputBuffer {
+    /// Creates a new TTSOutputBuffer with no data. This is done automatically when calling speak.
     pub fn new(index_mark: ffi::DWORD) -> Self {
         Self {
             output_data: Vec::new(),
@@ -175,10 +267,12 @@ impl TTSOutputBuffer {
         }
     }
 
+    /// Gets a notifier which will notify when the buffer is ready to be read.
     pub fn notify_when_ready(&self) -> Arc<Notify> {
         return self.notify_ready.clone();
     }
 
+    /// Marks the buffer as ready. This is called by the callback function.
     pub fn mark_ready(&mut self) {
         self.ready = true;
         // Notify that this buffer is ready
@@ -196,15 +290,22 @@ impl fmt::Debug for TTSOutputBuffer {
 }
 
 // ----- TTSHandle -----
+/// Keeps track of a pointer to a DECTalk instance and related information.
 #[derive(Debug)]
 pub struct TTSHandle {
+    /// The raw pointer to the C text to speech handle.
     tts_handle_ptr: ffi::LPTTS_HANDLE_T,
+    /// The buffers being used by this DECTalk instance.
     buffers: Vec<*mut ffi::TTS_BUFFER_T>,
+    /// The output buffers being output to by this DECTalk instance.
     pub output_buffers: HashMap<ffi::DWORD, TTSOutputBuffer>,
+    /// The last buffer this instance has modified. This is just used internally by the callback to
+    /// keep track of when buffers are ready.
     pub last_buffer_modified: ffi::DWORD,
 }
 
 impl TTSHandle {
+    /// Creates a new TTS handle.
     pub fn new() -> Self {
         Self {
             tts_handle_ptr: std::ptr::null_mut(),
@@ -214,6 +315,10 @@ impl TTSHandle {
         }
     }
 
+    /// Initializes the text-to-speech system, defines the callback routine, checks for valid
+    /// licenses, and loads the main and user pronunciation dictionaries.
+    ///
+    /// This must be called before doing anything else with this handle.
     pub fn startup(
         &mut self,
         device_number: ffi::UINT,
@@ -228,10 +333,23 @@ impl TTSHandle {
         );
     }
 
+    /// Shuts down the text-to-speech system and frees all system resources used by the
+    /// text-to-speech system.
+    ///
+    /// This should be called when you're done with the handle.
     pub fn shutdown(&self) -> Result<DtError, DtError> {
         return text_to_speech_shutdown(self.tts_handle_ptr);
     }
 
+    /// Queues a null-terminated string to the text-to-speech system. This creates a buffer to
+    /// store the resulting audio data in and returns it.
+    ///
+    /// While in startup state, speech samples are routed to the audio device or ignored, depending
+    /// on whether the DO_NOT_USE_AUDIO_DEVICE flag is set in the dwDeviceOptions parameter of the
+    /// startup function.
+    ///
+    /// If the text_to_speech system is in one of its special modes (wave-file, log-file, or
+    /// speech-to-memory modes), the speech samples are handled accordingly.
     pub fn speak(
         &mut self,
         text: &str,
@@ -266,6 +384,12 @@ impl TTSHandle {
         }
     }
 
+    /// Causes the specified wave file to be opened and the text-to-speech system to enter into
+    /// wave-file mode.
+    ///
+    /// This mode indicates that the speech samples are to be written in wave format into the wave
+    /// file each time TextToSpeechSpeak is called. The text-to-speech system remains in the
+    /// wave-file mode until TextToSpeechCloseWaveOutFile is called
     pub fn open_wav_out_file(
         &self,
         file: &Path,
@@ -274,22 +398,39 @@ impl TTSHandle {
         return text_to_speech_open_wave_out_file(self.tts_handle_ptr, file, audio_format);
     }
 
+    /// Closes a wave file opened by the TextToSpeechOpenWaveOutFile call and returns to the
+    /// startup state. The speech samples are then ignored or sent to an audio device, depending on
+    /// the setting of the dwDeviceOptions parameter in the startup function
     pub fn close_wav_out_file(&self) -> Result<DtError, DtError> {
         return text_to_speech_close_wave_out_file(self.tts_handle_ptr);
     }
 
+    /// Causes the text-to-speech system to enter into the speech-to-memory mode.
+    ///
+    /// This mode indicates that the speech samples are to be written into memory buffers rather
+    /// than sent to an audio device each time TextToSpeechSpeak is called. The
+    /// TextToSpeechAddBuffer call supplies the text-to-speech system with the memory buffers that
+    /// it needs. The text-to-speech system remains in the speech-to-memory mode until
+    /// TextToSpeechCloseInMemory is called.
     pub fn open_in_memory(&self, audio_format: ffi::DWORD) -> Result<DtError, DtError> {
         return text_to_speech_open_in_memory(self.tts_handle_ptr, audio_format);
     }
 
+    /// Terminates the speech-to-memory capability and returns to the startup state. The speech
+    /// samples are then ignored or sent to an audio device, depending on the setting of the
+    /// dwDeviceOptions parameter in the startup function.
     pub fn close_in_memory(&self) -> Result<DtError, DtError> {
         return text_to_speech_close_in_memory(self.tts_handle_ptr);
     }
 
+    /// Supplies a memory buffer to the text-to-speech system. This memory buffer is used to store
+    /// speech samples while in the speech-to-memory mode.
     pub fn add_buffer(&mut self, buffer: *mut ffi::TTS_BUFFER_T) -> Result<DtError, DtError> {
         return text_to_speech_add_buffer(self.tts_handle_ptr, buffer);
     }
 
+    /// Creates a new buffer with the specififed array sizes and passes it to the text-to-speech
+    /// system.
     pub fn create_buffer(
         &mut self,
         data_buffer_size: usize,
