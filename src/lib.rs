@@ -1,8 +1,3 @@
-#![allow(non_upper_case_globals)]
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
-#![allow(dead_code)]
-
 pub mod ffi;
 
 use std::collections::HashMap;
@@ -32,20 +27,20 @@ pub enum DtError {
 
 fn parse_result(v: ffi::MMRESULT) -> Result<DtError, DtError> {
     match v {
-        MMSYSERR_NOERROR => Ok(DtError::NoError),
-        MMSYSERR_ERROR => Err(DtError::Error),
-        MMSYSERR_BADDEVICEID => Err(DtError::BadDeviceID),
-        MMSYSERR_NOTENABLED => Err(DtError::NotEnabled),
-        MMSYSERR_ALLOCATED => Err(DtError::Allocated),
-        MMSYSERR_INVALHANDLE => Err(DtError::InvalidHandle),
-        MMSYSERR_NODRIVER => Err(DtError::NoDriver),
-        MMSYSERR_NOMEM => Err(DtError::NoMemory),
-        MMSYSERR_NOTSUPPORTED => Err(DtError::NotSupported),
-        MMSYSERR_BADERRNUM => Err(DtError::BadErrorNumber),
-        MMSYSERR_INVALFLAG => Err(DtError::InvalidFlag),
-        MMSYSERR_INVALPARAM => Err(DtError::InvalidParameter),
-        MMSYSERR_HANDLEBUSY => Err(DtError::HandleBusy),
-        MMSYSERR_INVALIDALIAS => Err(DtError::InvalidAlias),
+        ffi::MMSYSERR_NOERROR => Ok(DtError::NoError),
+        ffi::MMSYSERR_ERROR => Err(DtError::Error),
+        ffi::MMSYSERR_BADDEVICEID => Err(DtError::BadDeviceID),
+        ffi::MMSYSERR_NOTENABLED => Err(DtError::NotEnabled),
+        ffi::MMSYSERR_ALLOCATED => Err(DtError::Allocated),
+        ffi::MMSYSERR_INVALHANDLE => Err(DtError::InvalidHandle),
+        ffi::MMSYSERR_NODRIVER => Err(DtError::NoDriver),
+        ffi::MMSYSERR_NOMEM => Err(DtError::NoMemory),
+        ffi::MMSYSERR_NOTSUPPORTED => Err(DtError::NotSupported),
+        ffi::MMSYSERR_BADERRNUM => Err(DtError::BadErrorNumber),
+        ffi::MMSYSERR_INVALFLAG => Err(DtError::InvalidFlag),
+        ffi::MMSYSERR_INVALPARAM => Err(DtError::InvalidParameter),
+        ffi::MMSYSERR_HANDLEBUSY => Err(DtError::HandleBusy),
+        ffi::MMSYSERR_INVALIDALIAS => Err(DtError::InvalidAlias),
         // Handle all valid cases
         _ => Err(DtError::BadErrorNumber),
     }
