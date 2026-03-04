@@ -43,6 +43,8 @@ fn main() {
         // Build the DECTalk binaries and stuff
         let dst = Config::new(&dectalk_path)
             .cxxflag("-DCMAKE_INSTALL_PREFIX=$OUT_DIR")
+            // Don't build the samples
+            .define("BUILD_SAMPLES", "OFF")
             .build();
 
         println!("cargo:rustc-link-search=native={}/lib", dst.display());
