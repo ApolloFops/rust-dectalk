@@ -3,7 +3,6 @@ use dectalk;
 use std::env;
 use std::path::Path;
 
-use dectalk::ffi::TTS_FORCE;
 use dectalk::ffi::WAVE_FORMAT_1M16;
 
 fn main() {
@@ -20,7 +19,7 @@ fn main() {
         .expect("Failed to open output file");
 
     tts_handle
-        .speak(&args[2], TTS_FORCE)
+        .speak(&args[2], dectalk::DtTTSFlags::Force)
         .expect("Failed to queue speech");
 
     tts_handle

@@ -4,7 +4,6 @@ use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
 
-use dectalk::ffi::TTS_FORCE;
 use dectalk::ffi::WAVE_FORMAT_1M16;
 
 #[tokio::main]
@@ -26,7 +25,7 @@ async fn main() {
         .expect("Failed to create buffer");
 
     let output_buffer_notify = tts_handle
-        .speak("Testing dectalk speech-to-memory from rust!", TTS_FORCE)
+        .speak("Testing dectalk speech-to-memory from rust!", dectalk::DtTTSFlags::Force)
         .expect("Failed to queue speech")
         .notify_when_ready();
 
@@ -39,11 +38,11 @@ async fn main() {
     println!("First buffer done");
 
     tts_handle
-        .speak("Speaking a second time", TTS_FORCE)
+        .speak("Speaking a second time", dectalk::DtTTSFlags::Force)
         .expect("Failed to queue speech");
 
     tts_handle
-        .speak("Speaking once again, now three!", TTS_FORCE)
+        .speak("Speaking once again, now three!", dectalk::DtTTSFlags::Force)
         .expect("Failed to queue speech");
 
     // while (true) {}

@@ -67,6 +67,27 @@ fn parse_result(v: ffi::MMRESULT) -> Result<DtError, DtError> {
     }
 }
 
+// ----- DtTTSMode -----
+/// An enum that represents different flags that can be used when calling speak.
+#[derive(Debug, PartialEq)]
+pub enum DtTTSFlags {
+    /// Insert characters in the text-to-speech queue.
+    Normal,
+    /// Insert characters in the text-to-speech queue and force all text to be output even if the
+    /// text stream does NOT end on a clause boundary.
+    Force,
+}
+
+impl DtTTSFlags {
+    /// Gets the integer value of the flag so it can be passed into DECTalk.
+    pub(self) fn integer_value(&self) -> u32 {
+        match self {
+            Self::Normal => return ffi::TTS_NORMAL,
+            Self::Force => return ffi::TTS_FORCE,
+        }
+    }
+}
+
 // ----- Wrapper functions -----
 /// Requests version information from DECTalk.
 ///
@@ -149,10 +170,14 @@ pub fn text_to_speech_shutdown(tts_handle: ffi::LPTTS_HANDLE_T) -> Result<DtErro
 pub fn text_to_speech_speak(
     tts_handle: ffi::LPTTS_HANDLE_T,
     text: String,
-    flags: ffi::DWORD,
+    flags: DtTTSFlags,
 ) -> Result<DtError, DtError> {
     unsafe {
-        let status = ffi::TextToSpeechSpeak(tts_handle, text.as_ptr() as *mut i8, flags);
+        let status = ffi::TextToSpeechSpeak(
+            tts_handle,
+            text.as_ptr() as *mut i8,
+            flags.integer_value(),
+        );
 
         return parse_result(status);
     }
@@ -353,7 +378,7 @@ impl TTSHandle {
     pub fn speak(
         &mut self,
         text: &str,
-        flags: ffi::DWORD,
+        flags: DtTTSFlags,
     ) -> Result<&mut TTSOutputBuffer, DtError> {
         // Find the first integer key not in the hashmap and use that as our index mark
         let unused_key = (1..).find(|i| !self.output_buffers.contains_key(i));
