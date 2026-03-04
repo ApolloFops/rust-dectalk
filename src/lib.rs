@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tokio::sync::Notify;
 
 // ----- DtError -----
-/// A struct that represents an error that DECTalk can throw.
+/// An enum that represents an error that DECTalk can throw.
 #[derive(Debug, PartialEq)]
 pub enum DtError {
     /// No error
