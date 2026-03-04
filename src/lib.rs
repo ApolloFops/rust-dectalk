@@ -3,18 +3,13 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
+pub mod ffi;
+
 use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Notify;
-
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-
-// This may be a hacky workaround but IDK enough about rust to know if it is
-// It does work though
-#[link(name = "dectalk")]
-unsafe extern "C" {}
 
 // ----- DtError -----
 #[derive(Debug, PartialEq)]
@@ -35,7 +30,7 @@ pub enum DtError {
     InvalidAlias,
 }
 
-fn parse_result(v: MMRESULT) -> Result<DtError, DtError> {
+fn parse_result(v: ffi::MMRESULT) -> Result<DtError, DtError> {
     match v {
         MMSYSERR_NOERROR => Ok(DtError::NoError),
         MMSYSERR_ERROR => Err(DtError::Error),
@@ -58,21 +53,21 @@ fn parse_result(v: MMRESULT) -> Result<DtError, DtError> {
 
 // ----- Wrapper functions -----
 pub fn text_to_speech_version() -> u32 {
-    let x = unsafe { TextToSpeechVersion(std::ptr::null_mut()) };
+    let x = unsafe { ffi::TextToSpeechVersion(std::ptr::null_mut()) };
     return x;
 }
 
 pub fn text_to_speech_startup(
-    tts_handle: *mut LPTTS_HANDLE_T,
-    device_number: UINT,
-    device_options: DWORD,
+    tts_handle: *mut ffi::LPTTS_HANDLE_T,
+    device_number: ffi::UINT,
+    device_options: ffi::DWORD,
     callback_routine: Option<unsafe extern "C" fn(i64, i64, i64, u32)>,
-    callback_parameter: LONG,
+    callback_parameter: ffi::LONG,
 ) -> Result<DtError, DtError> {
     dbg!(callback_parameter);
 
     unsafe {
-        let status = TextToSpeechStartup(
+        let status = ffi::TextToSpeechStartup(
             tts_handle,
             device_number,
             device_options,
@@ -84,30 +79,30 @@ pub fn text_to_speech_startup(
     }
 }
 
-pub fn text_to_speech_shutdown(tts_handle: LPTTS_HANDLE_T) -> Result<DtError, DtError> {
+pub fn text_to_speech_shutdown(tts_handle: ffi::LPTTS_HANDLE_T) -> Result<DtError, DtError> {
     unsafe {
-        let status = TextToSpeechShutdown(tts_handle);
+        let status = ffi::TextToSpeechShutdown(tts_handle);
 
         return parse_result(status);
     }
 }
 
 pub fn text_to_speech_speak(
-    tts_handle: LPTTS_HANDLE_T,
+    tts_handle: ffi::LPTTS_HANDLE_T,
     text: String,
-    flags: DWORD,
+    flags: ffi::DWORD,
 ) -> Result<DtError, DtError> {
     unsafe {
-        let status = TextToSpeechSpeak(tts_handle, text.as_ptr() as *mut i8, flags);
+        let status = ffi::TextToSpeechSpeak(tts_handle, text.as_ptr() as *mut i8, flags);
 
         return parse_result(status);
     }
 }
 
 pub fn text_to_speech_open_wave_out_file(
-    tts_handle: LPTTS_HANDLE_T,
+    tts_handle: ffi::LPTTS_HANDLE_T,
     file: &Path,
-    audio_format: DWORD,
+    audio_format: ffi::DWORD,
 ) -> Result<DtError, DtError> {
     unsafe {
         let mut filepath: String = String::from(
@@ -117,46 +112,51 @@ pub fn text_to_speech_open_wave_out_file(
                 .expect("File path is not a valid string"),
         );
 
-        let status =
-            TextToSpeechOpenWaveOutFile(tts_handle, filepath.as_mut_ptr() as *mut i8, audio_format);
+        let status = ffi::TextToSpeechOpenWaveOutFile(
+            tts_handle,
+            filepath.as_mut_ptr() as *mut i8,
+            audio_format,
+        );
 
         return parse_result(status);
     }
 }
 
-pub fn text_to_speech_close_wave_out_file(tts_handle: LPTTS_HANDLE_T) -> Result<DtError, DtError> {
+pub fn text_to_speech_close_wave_out_file(
+    tts_handle: ffi::LPTTS_HANDLE_T,
+) -> Result<DtError, DtError> {
     unsafe {
-        let status = TextToSpeechCloseWaveOutFile(tts_handle);
+        let status = ffi::TextToSpeechCloseWaveOutFile(tts_handle);
 
         return parse_result(status);
     }
 }
 
 pub fn text_to_speech_open_in_memory(
-    tts_handle: LPTTS_HANDLE_T,
-    audio_format: DWORD,
+    tts_handle: ffi::LPTTS_HANDLE_T,
+    audio_format: ffi::DWORD,
 ) -> Result<DtError, DtError> {
     unsafe {
-        let status = TextToSpeechOpenInMemory(tts_handle, audio_format);
+        let status = ffi::TextToSpeechOpenInMemory(tts_handle, audio_format);
 
         return parse_result(status);
     }
 }
 
-pub fn text_to_speech_close_in_memory(tts_handle: LPTTS_HANDLE_T) -> Result<DtError, DtError> {
+pub fn text_to_speech_close_in_memory(tts_handle: ffi::LPTTS_HANDLE_T) -> Result<DtError, DtError> {
     unsafe {
-        let status = TextToSpeechCloseInMemory(tts_handle);
+        let status = ffi::TextToSpeechCloseInMemory(tts_handle);
 
         return parse_result(status);
     }
 }
 
 pub fn text_to_speech_add_buffer(
-    tts_handle: LPTTS_HANDLE_T,
-    buffer: *mut TTS_BUFFER_T,
+    tts_handle: ffi::LPTTS_HANDLE_T,
+    buffer: *mut ffi::TTS_BUFFER_T,
 ) -> Result<DtError, DtError> {
     unsafe {
-        let status = TextToSpeechAddBuffer(tts_handle, buffer);
+        let status = ffi::TextToSpeechAddBuffer(tts_handle, buffer);
 
         return parse_result(status);
     }
@@ -165,13 +165,13 @@ pub fn text_to_speech_add_buffer(
 // ----- TTSOutputBuffer -----
 pub struct TTSOutputBuffer {
     pub output_data: Vec<u8>,
-    index_mark: DWORD,
+    index_mark: ffi::DWORD,
     pub ready: bool,
     notify_ready: Arc<Notify>,
 }
 
 impl TTSOutputBuffer {
-    pub fn new(index_mark: DWORD) -> Self {
+    pub fn new(index_mark: ffi::DWORD) -> Self {
         Self {
             output_data: Vec::new(),
             index_mark: index_mark,
@@ -203,10 +203,10 @@ impl fmt::Debug for TTSOutputBuffer {
 // ----- TTSHandle -----
 #[derive(Debug)]
 pub struct TTSHandle {
-    tts_handle_ptr: LPTTS_HANDLE_T,
-    buffers: Vec<*mut TTS_BUFFER_T>,
-    pub output_buffers: HashMap<DWORD, TTSOutputBuffer>,
-    pub last_buffer_modified: DWORD,
+    tts_handle_ptr: ffi::LPTTS_HANDLE_T,
+    buffers: Vec<*mut ffi::TTS_BUFFER_T>,
+    pub output_buffers: HashMap<ffi::DWORD, TTSOutputBuffer>,
+    pub last_buffer_modified: ffi::DWORD,
 }
 
 impl TTSHandle {
@@ -221,15 +221,15 @@ impl TTSHandle {
 
     pub fn startup(
         &mut self,
-        device_number: UINT,
-        device_options: DWORD,
+        device_number: ffi::UINT,
+        device_options: ffi::DWORD,
     ) -> Result<DtError, DtError> {
         return text_to_speech_startup(
             &mut self.tts_handle_ptr,
             device_number,
             device_options,
             Some(dt_callback),
-            self as *mut Self as *mut usize as LONG,
+            self as *mut Self as *mut usize as ffi::LONG,
         );
     }
 
@@ -237,11 +237,15 @@ impl TTSHandle {
         return text_to_speech_shutdown(self.tts_handle_ptr);
     }
 
-    pub fn speak(&mut self, text: &str, flags: DWORD) -> Result<&mut TTSOutputBuffer, DtError> {
+    pub fn speak(
+        &mut self,
+        text: &str,
+        flags: ffi::DWORD,
+    ) -> Result<&mut TTSOutputBuffer, DtError> {
         // Find the first integer key not in the hashmap and use that as our index mark
         let unused_key = (1..).find(|i| !self.output_buffers.contains_key(i));
 
-        let index_mark: DWORD;
+        let index_mark: ffi::DWORD;
         match unused_key {
             Some(n) => index_mark = n,
             // If we can't find an index mark to use, throw an error
@@ -267,7 +271,11 @@ impl TTSHandle {
         }
     }
 
-    pub fn open_wav_out_file(&self, file: &Path, audio_format: DWORD) -> Result<DtError, DtError> {
+    pub fn open_wav_out_file(
+        &self,
+        file: &Path,
+        audio_format: ffi::DWORD,
+    ) -> Result<DtError, DtError> {
         return text_to_speech_open_wave_out_file(self.tts_handle_ptr, file, audio_format);
     }
 
@@ -275,7 +283,7 @@ impl TTSHandle {
         return text_to_speech_close_wave_out_file(self.tts_handle_ptr);
     }
 
-    pub fn open_in_memory(&self, audio_format: DWORD) -> Result<DtError, DtError> {
+    pub fn open_in_memory(&self, audio_format: ffi::DWORD) -> Result<DtError, DtError> {
         return text_to_speech_open_in_memory(self.tts_handle_ptr, audio_format);
     }
 
@@ -283,7 +291,7 @@ impl TTSHandle {
         return text_to_speech_close_in_memory(self.tts_handle_ptr);
     }
 
-    pub fn add_buffer(&mut self, buffer: *mut TTS_BUFFER_T) -> Result<DtError, DtError> {
+    pub fn add_buffer(&mut self, buffer: *mut ffi::TTS_BUFFER_T) -> Result<DtError, DtError> {
         return text_to_speech_add_buffer(self.tts_handle_ptr, buffer);
     }
 
@@ -292,16 +300,16 @@ impl TTSHandle {
         data_buffer_size: usize,
         index_buffer_size: usize,
     ) -> Result<DtError, DtError> {
-        let mut data = vec![0 as LPSTR; data_buffer_size];
+        let mut data = vec![0 as ffi::LPSTR; data_buffer_size];
         let data_ptr = data.as_mut_ptr();
         std::mem::forget(data);
 
         // TODO: Sort out keeping this alive and then dropping it when done
-        let mut index_vec: Vec<TTS_INDEX_T> = Vec::with_capacity(index_buffer_size);
+        let mut index_vec: Vec<ffi::TTS_INDEX_T> = Vec::with_capacity(index_buffer_size);
         let index_vec_ptr = index_vec.as_mut_ptr();
         std::mem::forget(index_vec);
 
-        let buffer = Box::new(TTS_BUFFER_T {
+        let buffer = Box::new(ffi::TTS_BUFFER_T {
             lpData: data_ptr as *mut i8,
             dwMaximumBufferLength: data_buffer_size as u32,
             lpPhonemeArray: std::ptr::null_mut(),
@@ -334,8 +342,8 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
     // Get the tts handle struct from the pointer
     let tts_handle: *mut TTSHandle = user_defined as *mut TTSHandle;
 
-    if (message == TTS_MSG_BUFFER) {
-        let buffer: *mut TTS_BUFFER_T = lparam as *mut TTS_BUFFER_T;
+    if (message == ffi::TTS_MSG_BUFFER) {
+        let buffer: *mut ffi::TTS_BUFFER_T = lparam as *mut ffi::TTS_BUFFER_T;
 
         unsafe {
             // Get the data array

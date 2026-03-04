@@ -3,8 +3,8 @@ use dectalk;
 use std::env;
 use std::path::Path;
 
-use dectalk::TTS_FORCE;
-use dectalk::WAVE_FORMAT_1M16;
+use dectalk::ffi::TTS_FORCE;
+use dectalk::ffi::WAVE_FORMAT_1M16;
 
 fn main() {
     println!("DECTalk Version: {}", dectalk::text_to_speech_version());

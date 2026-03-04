@@ -4,8 +4,8 @@ use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
 
-use dectalk::TTS_FORCE;
-use dectalk::WAVE_FORMAT_1M16;
+use dectalk::ffi::TTS_FORCE;
+use dectalk::ffi::WAVE_FORMAT_1M16;
 
 #[tokio::main]
 async fn main() {
