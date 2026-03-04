@@ -1,4 +1,5 @@
 use std::env;
+use std::fs;
 use std::path::PathBuf;
 
 use cmake::Config;
@@ -14,19 +15,45 @@ fn main() {
     dircpy::copy_dir(dectalk_source_path, &dectalk_path)
         .expect("Failed to copy DECTalk to OUT_DIR");
 
-    // Builds the project in the directory located in `libfoo`, installing it
-    // into $OUT_DIR
-    let dst = Config::new(&dectalk_path)
-        .cxxflag("-DCMAKE_INSTALL_PREFIX=$OUT_DIR")
-        .build();
+    let libdir_path: PathBuf;
+    if env::var("DOCS_RS").is_ok() {
+        // ---- Docs.rs Build ----
+        // Because the native dependencies won't be available on docs.rs, just skip building them
+        println!("cargo:warning=DOCS_RS detected: Skipping native build");
 
-    println!("cargo:rustc-link-search=native={}/lib", dst.display());
-    println!("cargo:rustc-link-lib=dylib=dectalk");
+        libdir_path = out_dir.join("include");
 
-    let libdir_path = dst
-        .join("include")
-        .canonicalize()
-        .expect("Can not canonicalize path");
+        // Create the output path
+        fs::create_dir_all(libdir_path.join("dtk")).expect("Failed to create include directory");
+
+        // Copy headers since we need those
+        fs::copy(
+            dectalk_path.join("src/dapi/src/api/ttsapi.h"),
+            libdir_path.join("dtk/ttsapi.h"),
+        )
+        .expect("Failed to copy ttsapi.h header");
+        fs::copy(
+            dectalk_path.join("src/dapi/src/osf/dtmmedefs.h"),
+            libdir_path.join("dtk/dtmmedefs.h"),
+        )
+        .expect("Failed to copy dtmmedefs.h header");
+    } else {
+        // ---- Regular Build ----
+
+        // Build the DECTalk binaries and stuff
+        let dst = Config::new(&dectalk_path)
+            .cxxflag("-DCMAKE_INSTALL_PREFIX=$OUT_DIR")
+            .build();
+
+        println!("cargo:rustc-link-search=native={}/lib", dst.display());
+        println!("cargo:rustc-link-lib=dylib=dectalk");
+
+        libdir_path = dst
+            .join("include")
+            .canonicalize()
+            .expect("Can not canonicalize path");
+    }
+
     let libdir_str = libdir_path.to_str().expect("Path is not a valid string");
 
     // Generate bindings
