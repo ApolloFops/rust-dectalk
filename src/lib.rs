@@ -243,7 +243,7 @@ pub fn text_to_speech_add_buffer(
 
 // ----- TTSOutputBuffer -----
 /// Stores speech output from DECTalk in speech-to-memory mode and keeps track of when it's ready
-/// to be read.
+/// to be read. This gets created and managed internally.
 pub struct TTSOutputBuffer {
     /// The raw audio data output by DECTalk. This gets added to incrementally, and is not
     /// guaranteed to be complete until ready is true.
@@ -258,7 +258,7 @@ pub struct TTSOutputBuffer {
 
 impl TTSOutputBuffer {
     /// Creates a new TTSOutputBuffer with no data. This is done automatically when calling speak.
-    pub fn new(index_mark: ffi::DWORD) -> Self {
+    pub(self) fn new(index_mark: ffi::DWORD) -> Self {
         Self {
             output_data: Vec::new(),
             index_mark: index_mark,
@@ -273,7 +273,7 @@ impl TTSOutputBuffer {
     }
 
     /// Marks the buffer as ready. This is called by the callback function.
-    pub fn mark_ready(&mut self) {
+    pub(self) fn mark_ready(&mut self) {
         self.ready = true;
         // Notify that this buffer is ready
         self.notify_ready.notify_one();
