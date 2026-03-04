@@ -25,9 +25,18 @@ async fn main() {
         .create_buffer(4096, 128)
         .expect("Failed to create buffer");
 
-    tts_handle
+    let output_buffer_notify = tts_handle
         .speak("Testing dectalk speech-to-memory from rust!", TTS_FORCE)
-        .expect("Failed to queue speech");
+        .expect("Failed to queue speech")
+        .notify_when_ready();
+
+    tokio::spawn(async move {
+        println!("Task waiting for notification...");
+        &output_buffer_notify.notified().await;
+        println!("Task received notification and woke up!");
+    });
+
+    println!("First buffer done");
 
     tts_handle
         .speak("Speaking a second time", TTS_FORCE)

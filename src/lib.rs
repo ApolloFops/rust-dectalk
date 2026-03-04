@@ -237,7 +237,7 @@ impl TTSHandle {
         return text_to_speech_shutdown(self.tts_handle_ptr);
     }
 
-    pub fn speak(&mut self, text: &str, flags: DWORD) -> Result<DtError, DtError> {
+    pub fn speak(&mut self, text: &str, flags: DWORD) -> Result<&mut TTSOutputBuffer, DtError> {
         // Find the first integer key not in the hashmap and use that as our index mark
         let unused_key = (1..).find(|i| !self.output_buffers.contains_key(i));
 
@@ -250,13 +250,21 @@ impl TTSHandle {
 
         // Create an output buffer and add it to the map
         let output_buffer = TTSOutputBuffer::new(index_mark);
-        self.output_buffers.insert(index_mark, output_buffer);
+        let output_buffer_reference = self
+            .output_buffers
+            .entry(index_mark)
+            .or_insert(output_buffer);
 
-        return text_to_speech_speak(
+        let status = text_to_speech_speak(
             self.tts_handle_ptr,
             format!("[:index mark {}]{}", index_mark, text),
             flags,
         );
+
+        match status {
+            Ok(_) => return Ok(output_buffer_reference),
+            Err(e) => return Err(e),
+        }
     }
 
     pub fn open_wav_out_file(&self, file: &Path, audio_format: DWORD) -> Result<DtError, DtError> {
@@ -317,11 +325,11 @@ impl TTSHandle {
 }
 
 extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: u32) {
-    println!("DtCallback called");
-    println!(
-        "\tWPARAM: {}\n\tLPARAM: {}\n\tUser defined: {}\n\tMessage: {}",
-        wparam, lparam, user_defined, message
-    );
+    // println!("DtCallback called");
+    // println!(
+    //     "\tWPARAM: {}\n\tLPARAM: {}\n\tUser defined: {}\n\tMessage: {}",
+    //     wparam, lparam, user_defined, message
+    // );
 
     // Get the tts handle struct from the pointer
     let tts_handle: *mut TTSHandle = user_defined as *mut TTSHandle;
@@ -336,21 +344,23 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
                 (*buffer).dwBufferLength as usize,
             );
 
-            // Get the index array and print it out
+            // Get the index array
             let index_array = std::slice::from_raw_parts(
                 (*buffer).lpIndexArray,
                 (*buffer).dwMaximumNumberOfIndexMarks as usize,
             );
-            for (i, mark) in index_array
-                .iter()
-                .filter(|m| m.dwIndexValue != 0)
-                .enumerate()
-            {
-                println!(
-                    "Index {}: sample={} value={}",
-                    i, mark.dwIndexSampleNumber, mark.dwIndexValue
-                );
-            }
+
+            // Print out the index array
+            // for (i, mark) in index_array
+            //     .iter()
+            //     .filter(|m| m.dwIndexValue != 0)
+            //     .enumerate()
+            // {
+            //     println!(
+            //         "Index {}: sample={} value={}",
+            //         i, mark.dwIndexSampleNumber, mark.dwIndexValue
+            //     );
+            // }
 
             // Append data to the output buffer
             for (i, mark) in index_array
