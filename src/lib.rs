@@ -3,7 +3,7 @@
 //! `dectalk` is a wrapper around the [DECTalk](https://github.com/dectalk/dectalk) text-to-speech
 //! library.
 
-pub mod ffi;
+mod ffi;
 
 use std::collections::HashMap;
 use std::fmt;
