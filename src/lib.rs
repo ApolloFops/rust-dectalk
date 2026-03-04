@@ -88,6 +88,29 @@ impl DtTTSFlags {
     }
 }
 
+// ----- DtTTSFormat -----
+/// An enum that represents different sample formats that can be output by DECTalk.
+#[derive(Debug, PartialEq)]
+pub enum DtTTSFormat {
+    /// Mono 8-bit, 11.025 kHz sample rate
+    WaveFormat1M08,
+    /// Mono 16-bit, 11.025 kHz sample rate
+    WaveFormat1M16,
+    /// Mono 8-bit, m-law 8 kHz sample rate
+    WaveFormat08M08,
+}
+
+impl DtTTSFormat {
+    /// Gets the integer value of the format so it can be passed into DECTalk.
+    pub(self) fn integer_value(&self) -> u32 {
+        match self {
+            Self::WaveFormat1M08 => return ffi::WAVE_FORMAT_1M08,
+            Self::WaveFormat1M16 => return ffi::WAVE_FORMAT_1M16,
+            Self::WaveFormat08M08 => return ffi::WAVE_FORMAT_08M08,
+        }
+    }
+}
+
 // ----- Wrapper functions -----
 /// Requests version information from DECTalk.
 ///
@@ -192,7 +215,7 @@ pub fn text_to_speech_speak(
 pub fn text_to_speech_open_wave_out_file(
     tts_handle: ffi::LPTTS_HANDLE_T,
     file: &Path,
-    audio_format: ffi::DWORD,
+    audio_format: DtTTSFormat,
 ) -> Result<DtError, DtError> {
     unsafe {
         let mut filepath: String = String::from(
@@ -205,7 +228,7 @@ pub fn text_to_speech_open_wave_out_file(
         let status = ffi::TextToSpeechOpenWaveOutFile(
             tts_handle,
             filepath.as_mut_ptr() as *mut i8,
-            audio_format,
+            audio_format.integer_value(),
         );
 
         return parse_result(status);
@@ -418,7 +441,7 @@ impl TTSHandle {
     pub fn open_wav_out_file(
         &self,
         file: &Path,
-        audio_format: ffi::DWORD,
+        audio_format: DtTTSFormat,
     ) -> Result<DtError, DtError> {
         return text_to_speech_open_wave_out_file(self.tts_handle_ptr, file, audio_format);
     }

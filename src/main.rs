@@ -3,8 +3,6 @@ use dectalk;
 use std::env;
 use std::path::Path;
 
-use dectalk::ffi::WAVE_FORMAT_1M16;
-
 fn main() {
     println!("DECTalk Version: {}", dectalk::text_to_speech_version());
 
@@ -15,7 +13,7 @@ fn main() {
     tts_handle.startup(0, 0).expect("Failed to start DECTalk");
 
     tts_handle
-        .open_wav_out_file(Path::new(&args[1]), WAVE_FORMAT_1M16)
+        .open_wav_out_file(Path::new(&args[1]), dectalk::DtTTSFormat::WaveFormat1M16)
         .expect("Failed to open output file");
 
     tts_handle

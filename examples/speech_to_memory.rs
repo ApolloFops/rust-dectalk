@@ -4,8 +4,6 @@ use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
 
-use dectalk::ffi::WAVE_FORMAT_1M16;
-
 #[tokio::main]
 async fn main() {
     println!("DECTalk Version: {}", dectalk::text_to_speech_version());
@@ -17,7 +15,7 @@ async fn main() {
     tts_handle.startup(0, 0).expect("Failed to start DECTalk");
 
     tts_handle
-        .open_in_memory(WAVE_FORMAT_1M16)
+        .open_in_memory(dectalk::DtTTSFormat::WaveFormat1M16)
         .expect("Failed to open in memory");
 
     tts_handle
