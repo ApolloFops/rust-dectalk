@@ -327,7 +327,7 @@ impl TTSHandle {
     }
 }
 
-extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: u32) {
+extern "C" fn dt_callback(_wparam: i64, lparam: i64, user_defined: i64, message: u32) {
     // println!("DtCallback called");
     // println!(
     //     "\tWPARAM: {}\n\tLPARAM: {}\n\tUser defined: {}\n\tMessage: {}",
@@ -337,7 +337,7 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
     // Get the tts handle struct from the pointer
     let tts_handle: *mut TTSHandle = user_defined as *mut TTSHandle;
 
-    if (message == ffi::TTS_MSG_BUFFER) {
+    if message == ffi::TTS_MSG_BUFFER {
         let buffer: *mut ffi::TTS_BUFFER_T = lparam as *mut ffi::TTS_BUFFER_T;
 
         unsafe {
@@ -366,7 +366,7 @@ extern "C" fn dt_callback(wparam: i64, lparam: i64, user_defined: i64, message: 
             // }
 
             // Append data to the output buffer
-            for (i, mark) in index_array
+            for (_i, mark) in index_array
                 .iter()
                 .filter(|m| m.dwIndexValue != 0)
                 .enumerate()
