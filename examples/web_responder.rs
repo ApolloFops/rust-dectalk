@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Cursor;
 use std::sync::Arc;
 
 use axum::http::{HeaderValue, StatusCode};
@@ -7,6 +8,7 @@ use dectalk;
 
 use axum::extract::{Query, State};
 use axum::{routing::get, Router};
+use hound::{SampleFormat, WavSpec, WavWriter};
 use tokio::sync::Mutex;
 
 /// The message output when the URL parameter is not found.
@@ -33,11 +35,12 @@ async fn main() {
 
     // Set up DECTalk
     let mut dectalk_lock = state.dectalk.lock().await;
-    dectalk_lock.startup(0, 0)
-        .expect("Failed to start DECTalk");
-    dectalk_lock.open_in_memory(dectalk::DtTTSFormat::WaveFormat1M16)
+    dectalk_lock.startup(0, 0).expect("Failed to start DECTalk");
+    dectalk_lock
+        .open_in_memory(dectalk::DtTTSFormat::WaveFormat1M16)
         .expect("Failed to open DECTalk in memory");
-    dectalk_lock.create_buffer(DATA_BUFFER_SIZE, INDEX_BUFFER_SIZE)
+    dectalk_lock
+        .create_buffer(DATA_BUFFER_SIZE, INDEX_BUFFER_SIZE)
         .expect("Failed to create buffer");
     drop(dectalk_lock);
 
@@ -68,12 +71,31 @@ async fn get_tts(
 
     let output_buffer = output_buffer_future.await;
 
+    // Set up the WAV file
+    let spec = WavSpec {
+        channels: 1,
+        sample_rate: 11025,
+        bits_per_sample: 16,
+        sample_format: SampleFormat::Int,
+    };
+
+    let mut cursor = Cursor::new(Vec::new());
+    let mut writer = WavWriter::new(&mut cursor, spec).unwrap();
+
+    for chunk in output_buffer.chunks_exact(2) {
+        let sample = i16::from_le_bytes([chunk[0], chunk[1]]);
+        writer.write_sample(sample).unwrap();
+    }
+
+    writer.finalize().unwrap();
+    let wav_bytes = cursor.into_inner();
+
     let response = Response::builder()
         .header(
             axum::http::header::CONTENT_TYPE,
             HeaderValue::from_static("audio/wav"),
         )
-        .body(axum::body::Body::from(output_buffer))
+        .body(axum::body::Body::from(wav_bytes))
         .unwrap();
 
     return Ok((StatusCode::OK, response).into_response());
