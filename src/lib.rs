@@ -8,7 +8,7 @@ mod ffi;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::Notify;
 
 // ----- DtError -----
@@ -343,11 +343,13 @@ pub struct TTSHandle {
     /// The buffers being used by this DECTalk instance.
     buffers: Vec<*mut ffi::TTS_BUFFER_T>,
     /// The output buffers being output to by this DECTalk instance.
-    pub output_buffers: HashMap<ffi::DWORD, TTSOutputBuffer>,
+    pub output_buffers: HashMap<ffi::DWORD, Arc<Mutex<TTSOutputBuffer>>>,
     /// The last buffer this instance has modified. This is just used internally by the callback to
     /// keep track of when buffers are ready.
     pub last_buffer_modified: ffi::DWORD,
 }
+
+unsafe impl Send for TTSHandle {}
 
 impl TTSHandle {
     /// Creates a new TTS handle.
@@ -387,7 +389,7 @@ impl TTSHandle {
     }
 
     /// Queues a null-terminated string to the text-to-speech system. This creates a buffer to
-    /// store the resulting audio data in and returns it.
+    /// store the resulting audio data in and returns it in a Future.
     ///
     /// While in startup state, speech samples are routed to the audio device or ignored, depending
     /// on whether the DO_NOT_USE_AUDIO_DEVICE flag is set in the dwDeviceOptions parameter of the
@@ -399,9 +401,9 @@ impl TTSHandle {
         &mut self,
         text: &str,
         flags: DtTTSFlags,
-    ) -> Result<&mut TTSOutputBuffer, DtError> {
+    ) -> Result<impl Future<Output = Vec<u8>>, DtError> {
         // Find the first integer key not in the hashmap and use that as our index mark
-        let unused_key = (1..).find(|i| !self.output_buffers.contains_key(i));
+        let unused_key = (2..).find(|i| !self.output_buffers.contains_key(i));
 
         let index_mark: ffi::DWORD;
         match unused_key {
@@ -411,20 +413,47 @@ impl TTSHandle {
         }
 
         // Create an output buffer and add it to the map
-        let output_buffer = TTSOutputBuffer::new(index_mark);
-        let output_buffer_reference = self
-            .output_buffers
+        let output_buffer = Arc::new(Mutex::new(TTSOutputBuffer::new(index_mark)));
+        self.output_buffers
             .entry(index_mark)
-            .or_insert(output_buffer);
+            .or_insert(output_buffer.clone());
 
         let status = text_to_speech_speak(
             self.tts_handle_ptr,
-            format!("[:index mark {}]{}", index_mark, text),
+            // The second index mark here serves as a really jank way to figure out when the buffer
+            // stops - we check if the index mark matches that number, and if it does, we mark the
+            // previous buffer as done.
+            format!("[:index mark {}]{}[:index mark 1]a", index_mark, text),
             flags,
         );
 
         match status {
-            Ok(_) => return Ok(output_buffer_reference),
+            Ok(_) => {
+                return Ok(async move {
+                    // Check if the buffer is ready, and if not, wait for the buffer to become ready
+                    let buffer_notifier = {
+                        let output_buffer_lock = output_buffer.lock().unwrap();
+
+                        if output_buffer_lock.ready {
+                            None
+                        } else {
+                            Some(output_buffer_lock.notify_when_ready())
+                        }
+                    };
+
+                    if let Some(notifier) = buffer_notifier {
+                        notifier.notified().await;
+                    }
+
+                    // Once it is, consume the mutex and return the data from it
+                    // TODO: Handle poisoned buffers?
+                    Arc::try_unwrap(output_buffer)
+                        .expect("Failed to unwrap the output buffer")
+                        .into_inner()
+                        .unwrap()
+                        .output_data
+                });
+            }
             Err(e) => return Err(e),
         }
     }
@@ -566,9 +595,13 @@ extern "C" fn dt_callback(_wparam: i64, lparam: i64, user_defined: i64, message:
                     // Get the previous buffer and mark it as ready
                     let last_buffer = (*tts_handle).output_buffers.get_mut(&last_buffer_index);
                     match last_buffer {
-                        Some(v) => {
-                            v.mark_ready();
-                            println!("Done with buffer");
+                        Some(buffer) => {
+                            // Remove the buffer from the HashMap
+                            (*tts_handle).output_buffers.remove(&last_buffer_index);
+
+                            let mut buffer_lock = buffer.lock().unwrap();
+                            buffer_lock.mark_ready();
+                            drop(buffer_lock);
                         }
                         None => eprintln!("Previous index tag not in buffer cache"),
                     }
@@ -584,7 +617,11 @@ extern "C" fn dt_callback(_wparam: i64, lparam: i64, user_defined: i64, message:
                     // If we found a buffer, append the sample data to it
                     // TODO: Check for and handle the case where we have multiple indices in one
                     // message
-                    Some(v) => v.output_data.extend_from_slice(data_array),
+                    Some(buffer) => {
+                        let mut buffer_lock = buffer.lock().unwrap();
+                        buffer_lock.output_data.extend_from_slice(data_array);
+                        drop(buffer_lock);
+                    }
                     None => eprintln!("Index tag not in buffer cache"),
                 }
             }

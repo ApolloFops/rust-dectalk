@@ -26,3 +26,6 @@ tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "macros"] 
 bindgen = "0.71.0"
 cmake = "0.1"
 dircpy = "0.3.19"
+
+[dev-dependencies]
+axum = "0.8.8"
