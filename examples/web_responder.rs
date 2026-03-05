@@ -33,9 +33,12 @@ async fn main() {
 
     // Set up DECTalk
     let mut dectalk_lock = state.dectalk.lock().await;
-    dectalk_lock.startup(0, 0);
-    dectalk_lock.open_in_memory(dectalk::DtTTSFormat::WaveFormat1M16);
-    dectalk_lock.create_buffer(DATA_BUFFER_SIZE, INDEX_BUFFER_SIZE);
+    dectalk_lock.startup(0, 0)
+        .expect("Failed to start DECTalk");
+    dectalk_lock.open_in_memory(dectalk::DtTTSFormat::WaveFormat1M16)
+        .expect("Failed to open DECTalk in memory");
+    dectalk_lock.create_buffer(DATA_BUFFER_SIZE, INDEX_BUFFER_SIZE)
+        .expect("Failed to create buffer");
     drop(dectalk_lock);
 
     // Set up the app
