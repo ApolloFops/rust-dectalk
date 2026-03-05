@@ -95,6 +95,10 @@ async fn get_tts(
             axum::http::header::CONTENT_TYPE,
             HeaderValue::from_static("audio/wav"),
         )
+        .header(
+            axum::http::header::CONTENT_DISPOSITION,
+            HeaderValue::from_static("inline"),
+        )
         .body(axum::body::Body::from(wav_bytes))
         .unwrap();
 
